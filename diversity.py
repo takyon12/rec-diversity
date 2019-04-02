@@ -16,12 +16,34 @@ from ast import literal_eval
 from copy import deepcopy
 
 DEBUG = True
+diversified_list = []
+bulharska_konstanta = 0.10
+
+def add_to_list(diversified_list, revenue, clust_nr, file = None):
+        
+    print(f"{float(revenue)},{clust_nr}")    
+    
+    if not diversified_list:
+        pass
+    else:
+        last = diversified_list[-1]
+    
+    if (float(last)/float(revenue)) > 15:
+        print("gap too big")
+    else:
+        file.write(f"{revenue},{clust_nr}\n")
+        print("gap ok")
+        diversified_list.append(float(revenue))
+        
+    
 
 def get_nparray(series):
     np_array = np.array(literal_eval(series))
     return np_array
 
-def diversify(array_ordercodes, array_embeddings, array_rankings):
+
+
+def diversify(array_ordercodes, array_embeddings, array_rankings, array_fname = None, array_bname = None):
     
     #order arrays according to rankings
     ranked_indices = np.argsort(array_rankings)
@@ -30,15 +52,22 @@ def diversify(array_ordercodes, array_embeddings, array_rankings):
     
     array_rankings = array_rankings[ranked_indices]
     array_ordercodes = array_ordercodes[ranked_indices]
-    array_embeddings = array_embeddings[ranked_indices]  
+    array_embeddings = array_embeddings[ranked_indices] 
+    array_fname = array_fname[ranked_indices]
+    array_bname = array_bname[ranked_indices]  
+    
+    #check
+    with open('RANKINGS.csv', 'w') as f:
+        for item in array_rankings:
+            f.write("%s\n" % item)
+    
     
     df = pd.DataFrame(data = array_embeddings)
     df[0] = df[0].str.replace('[','').str.replace(']','')
     df = df[0].str.split(',', expand = True).add_prefix('coord')   
     df = df.convert_objects(convert_numeric = True)    
     array_embeddings = df.to_numpy()
-    
-           
+              
     k = 4
     n = array_embeddings.shape[0]
     c = array_embeddings.shape[1]
@@ -51,14 +80,16 @@ def diversify(array_ordercodes, array_embeddings, array_rankings):
     mean = np.mean(array_embeddings, axis = 0)
     std = np.std(array_embeddings, axis = 0)
     centroids = np.random.randn(k,c)*std + mean
-    
-    print(centroids)
-    
+    centroids[0] = array_embeddings[0]
+    centroids[1] = array_embeddings[1]
+    centroids[2] = array_embeddings[2]
+    centroids[3] = array_embeddings[3]
+       
     centroids_old = np.zeros(centroids.shape)
     centroids_updated = deepcopy(centroids)
     clusters = np.zeros(n)
     distances = np.zeros((n,k))
-    
+   
     err = np.linalg.norm(centroids_updated - centroids_old)
     
     while err!=0 :
@@ -71,31 +102,59 @@ def diversify(array_ordercodes, array_embeddings, array_rankings):
         for i in range(k):
             centroids_updated[i] = np.mean(array_embeddings[clusters == i], axis = 0)
         err = np.linalg.norm(centroids_updated - centroids_old)
-        
-    print(clusters)
-    print(clusters.shape)
+       
     
-    cluster1 = np.where(clusters==0)
+    cluster1 = np.where(clusters==0) #indexy 
     cluster2 = np.where(clusters==1)
     cluster3 = np.where(clusters==2)
     cluster4 = np.where(clusters==3)
     
-    n_items=0
-    row=0
-    diversified_list = []
+    clust1_ordercodes = array_ordercodes[cluster1]
+    clust1_bnames = array_bname[cluster1]
+    clust1_fnames = array_fname[cluster1]
+    clust1_rev = array_rankings[cluster1]
     
-    while n_items!=n:
+    clust2_ordercodes = array_ordercodes[cluster2]
+    clust2_bnames = array_bname[cluster2]
+    clust2_fnames = array_fname[cluster2]
+    clust2_rev = array_rankings[cluster2]
+    
+    clust3_ordercodes = array_ordercodes[cluster3]
+    clust3_bnames = array_bname[cluster3]
+    clust3_fnames = array_fname[cluster3]
+    clust3_rev = array_rankings[cluster3]
+    
+    clust4_ordercodes = array_ordercodes[cluster4]
+    clust4_bnames = array_bname[cluster4]
+    clust4_fnames = array_fname[cluster4]
+    clust4_rev = array_rankings[cluster4]
+    
+       
+    f = open('diversified_list.csv','w')
+    
+    diversified_list.append(clust1_rev[0])
+    
+    for i in range(1,n):
         try:
-            diversified_list.append(cluster1[row])
-            diversified_list.append(cluster2[row])
-            diversified_list.append(cluster3[row])
-            diversified_list.append(cluster4[row])
-            n_items= n_items+4
-            row=row+1
-        except:
             pass
+            add_to_list(diversified_list, clust1_rev[i], 1, f)
+            add_to_list(diversified_list, clust2_rev[i], 2, f)   
+            add_to_list(diversified_list, clust3_rev[i], 3, f)   
+            add_to_list(diversified_list, clust4_rev[i], 4, f)               
+#            print(f"{clust1_ordercodes[i]} {clust1_bnames[i]} {clust1_fnames[i]}")
+#            f.write(f"{clust1_ordercodes[i]},{clust1_bnames[i]},{clust1_fnames[i]},{clust1_rev[i]},CLUSTER: 1\n")
+#            print(f"{clust2_ordercodes[i]} {clust2_bnames[i]} {clust2_fnames[i]}")
+#            f.write(f"{clust2_ordercodes[i]},{clust2_bnames[i]},{clust2_fnames[i]},{clust2_rev[i]},CLUSTER: 2\n")
+#            print(f"{clust3_ordercodes[i]} {clust3_bnames[i]} {clust3_fnames[i]}")
+#            f.write(f"{clust3_ordercodes[i]},{clust3_bnames[i]},{clust3_fnames[i]},{clust3_rev[i]},CLUSTER: 3\n")
+#            print(f"{clust4_ordercodes[i]} {clust4_bnames[i]} {clust4_fnames[i]}")
+#            f.write(f"{clust4_ordercodes[i]},{clust4_bnames[i]},{clust4_fnames[i]},{clust4_rev[i]},CLUSTER: 4\n")
+        except:
+            pass   
     
-    return diversified_list
+    f.close()
+    
+#    #return diversified_list
         
 
 def main():  
@@ -111,8 +170,11 @@ def main():
     ordercodes = df['lab.ordercode'].to_numpy()
     embeddings = df['lab.oc_vector'].to_numpy()
     rankings = df['lab.revenue'].to_numpy() 
+    brandname = df['run.brandname'].to_numpy() 
+    familyname = df['run.familyname'].to_numpy() 
     
-    result = diversify(ordercodes, embeddings, rankings)
+    #result = 
+    diversify(ordercodes, embeddings, rankings, familyname, brandname)
          
     
 if __name__ == "__main__":
